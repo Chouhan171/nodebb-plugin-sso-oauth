@@ -1,16 +1,16 @@
 'use strict';
 
-define('admin/plugins/sso-google', ['settings', 'alerts'], function (Settings, alerts) {
+define('admin/plugins/aad-sso', ['settings', 'alerts'], function (Settings, alerts) {
 	var ACP = {};
 
 	ACP.init = function () {
-		Settings.load('sso-google', $('.sso-google-settings'));
+		Settings.load('aad-sso', $('.aad-sso-settings'));
 
 		$('#save').on('click', function () {
-			Settings.save('sso-google', $('.sso-google-settings'), function () {
+			Settings.save('aad-sso', $('.aad-sso-settings'), function () {
 				alerts.alert({
 					type: 'success',
-					alert_id: 'sso-google-saved',
+					alert_id: 'aad-sso-saved',
 					title: 'Settings Saved',
 					message: 'Please rebuild and restart your NodeBB to apply these settings, or click on this alert to do so.',
 					clickfn: function () {
@@ -23,7 +23,7 @@ define('admin/plugins/sso-google', ['settings', 'alerts'], function (Settings, a
 		$('a[data-action="help-credentials"]').on('click', function () {
 			bootbox.alert({
 				title: 'Where is the Credentials page?',
-				message: '<img src="' + config.relative_path + '/plugins/nodebb-plugin-sso-google/images/credentials.png" />',
+				message: '<img src="' + config.relative_path + '/plugins/nodebb-plugin-aad-sso/images/credentials.png" />',
 			});
 			return false;
 		});

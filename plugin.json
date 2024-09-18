@@ -12,6 +12,6 @@
 	
 	],
 	"modules": {
-		"../admin/plugins/sso-google.js": "static/lib/admin.js"
+		"../admin/plugins/aad-sso.js": "static/lib/admin.js"
 	}
 }
