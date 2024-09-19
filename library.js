@@ -25,6 +25,12 @@ const async = require('async');
 const passport = require.main.require('passport');
 const nconf = require.main.require('nconf');
 const winston = require.main.require('winston');
+const MongoClient = require('mongodb').MongoClient;
+
+// Define MongoDB connection
+const mongoUrl = 'mongodb://localhost:27017'; // Replace with your MongoDB URL
+const dbName = 'nodebb';
+let dbClient = null;
 
 
 /**
@@ -70,6 +76,14 @@ const constants = Object.freeze({
 	scope: ['openid', 'profile', 'User.Read'],  // Scopes for Azure ADope 
 	userRoute: 'https://graph.microsoft.com/v1.0/me',  // Use Microsoft Graph API to get user profile data
 });
+
+// Connect to MongoDB
+async function connectMongo() {
+    if (!dbClient) {
+        dbClient = await MongoClient.connect(mongoUrl, { useUnifiedTopology: true });
+    }
+    return dbClient.db(dbName);
+}
 
 const OAuth = {};
 let configOk = false;
@@ -210,47 +224,55 @@ OAuth.parseUserReturn = function (data, callback) {
 };
 
 OAuth.login = async (payload) => {
-	let uid = await OAuth.getUidByOAuthid(payload.oAuthid);
-	if (uid !== null) {
-		// Existing User
-		return ({
-			uid: uid,
-		});
-	}
+    const db = await connectMongo();
+    const usersCollection = db.collection('ssoUsers');
 
-	// Check for user via email fallback
-	uid = await User.getUidByEmail(payload.email);
-	if (!uid) {
-		/**
-			 * The email retrieved from the user profile might not be trusted.
-			 * Only you would know — it's up to you to decide whether or not to:
-			 *   - Send the welcome email which prompts for verification (default)
-			 *   - Bypass the welcome email and automatically verify the email (commented out, below)
-			 */
-		const { email } = payload;
+    let uid = await OAuth.getUidByOAuthid(payload.oAuthid);
+    if (uid !== null) {
+        // Existing User
+        return {
+            uid: uid,
+        };
+    }
 
-		// New user
-		uid = await User.create({
-			username: payload.handle,
-			email, // if you uncomment the block below, comment this line out
-		});
+    // Check for user via email fallback
+    uid = await User.getUidByEmail(payload.email);
+    if (!uid) {
+        const { email } = payload;
 
-		// Automatically confirm user email
-		// await User.setUserField(uid, 'email', email);
-		// await UserEmail.confirmByUid(uid);
-	}
+        // New user
+        uid = await User.create({
+            username: payload.handle,
+            email,
+        });
 
-	// Save provider-specific information to the user
-	await User.setUserField(uid, `${constants.name}Id`, payload.oAuthid);
-	await db.setObjectField(`${constants.name}Id:uid`, payload.oAuthid, uid);
+        // Automatically confirm user email (if needed)
+        // await User.setUserField(uid, 'email', email);
+        // await UserEmail.confirmByUid(uid);
 
-	if (payload.isAdmin) {
-		await Groups.join('administrators', uid);
-	}
+        // Save SSO user data into MongoDB
+        const ssoUserData = {
+            uid,
+            oAuthid: payload.oAuthid,
+            handle: payload.handle,
+            email: payload.email,
+            createdAt: new Date(),
+        };
 
-	return {
-		uid: uid,
-	};
+        await usersCollection.insertOne(ssoUserData);
+    }
+
+    // Save provider-specific information to the user
+    await User.setUserField(uid, `${constants.name}Id`, payload.oAuthid);
+    await db.setObjectField(`${constants.name}Id:uid`, payload.oAuthid, uid);
+
+    if (payload.isAdmin) {
+        await Groups.join('administrators', uid);
+    }
+
+    return {
+        uid: uid,
+    };
 };
 
 OAuth.getUidByOAuthid = async oAuthid => db.getObjectField(`${constants.name}Id:uid`, oAuthid);
