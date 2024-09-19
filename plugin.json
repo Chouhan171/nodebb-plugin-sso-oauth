@@ -5,8 +5,13 @@
 	"url": "https://github.com/julianlam/nodebb-plugin-sso-oauth",
 	"library": "./library.js",
 	"hooks": [
+		{ "hook": "static:app.load", "method": "getStrategy" },
 		{ "hook": "static:user.delete", "method": "deleteUserData" },
 		{ "hook": "filter:user.whitelistFields", "method": "whitelistFields" },
 		{ "hook": "filter:auth.init", "method": "getStrategy" }
-	]
+	
+	],
+	"modules": {
+		"../admin/plugins/aad-sso.js": "static/lib/admin.js"
+	}
 }
